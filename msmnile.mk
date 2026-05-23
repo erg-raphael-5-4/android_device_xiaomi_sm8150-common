@@ -165,8 +165,7 @@ PRODUCT_PACKAGES += \
     vendor.qti.hardware.display.allocator-service \
     vendor.qti.hardware.display.composer-service \
     vendor.qti.hardware.display.composer-service.rc \
-    vendor.qti.hardware.display.composer-service.xml \
-    gralloc.qcom
+    vendor.qti.hardware.display.composer-service.xml
 
 PRODUCT_PACKAGES += \
     vendor.qti.hardware.memtrack-service
