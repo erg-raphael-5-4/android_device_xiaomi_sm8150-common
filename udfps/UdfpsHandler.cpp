@@ -92,19 +92,6 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
                        << " (kernel lacks the dsi_display fod_hbm patch?)";
         }
 
-        // Permanently arm fod_status so the touch IC enters FOD-gesture
-        // mode at every suspend — required for screen-off FOD to fire
-        // BTN_INFO. The original reactive design (clear on onFingerUp,
-        // re-arm via panel_power_state poll) had a race where the kernel
-        // suspended the touch IC before the poll thread could re-arm.
-        // The cost is minor: touch IC stays in FOD-gesture mode during
-        // sleep, and BTN_INFO fires on screen-on FOD-area touches (FP HW
-        // then scans, ignored if no auth session active).
-        if (mFodStatusFd >= 0) {
-            lseek(mFodStatusFd, 0, SEEK_SET);
-            write(mFodStatusFd, "1", 1);
-        }
-
         std::thread([this]() {
             int fodUiFd;
             for (auto& path : kFodUiPaths) {
@@ -137,10 +124,11 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
             }
         }).detach();
 
-        // Defensive re-arm: if anything clears fod_status (legacy fod_ui
-        // path, init.rc reload, vendor service), re-arm whenever the
-        // panel leaves LCD_MODE_ON. Polls every 500ms; the init-time
-        // arm above is the primary mechanism — this is the safety net.
+        // Screen-state watcher: arms fod_status when the panel leaves
+        // LCD_MODE_ON (any non-zero state) so the touch IC enters
+        // FOD-gesture mode at suspend, and clears it when the panel
+        // returns to LCD_MODE_ON so screen-on flows can manage fod_status
+        // via onFingerDown/onFingerUp without interference.
         std::thread([this]() {
             int fd = open(kPanelPowerStatePath, O_RDONLY);
             if (fd < 0) {
@@ -154,15 +142,18 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
                 int r = read(fd, buf, sizeof(buf) - 1);
                 if (r > 0) {
                     int state = atoi(buf);
-                    if (state != lastState && state != 0) {
+                    if (state != lastState) {
+                        bool screenOff = (state != 0);
                         LOG(INFO) << "panel_power_state " << lastState
-                                  << " -> " << state << ", re-arming fod_status";
+                                  << " -> " << state
+                                  << ", fod_status=" << (screenOff ? 1 : 0);
                         if (mFodStatusFd >= 0) {
+                            const char* v = screenOff ? "1" : "0";
                             lseek(mFodStatusFd, 0, SEEK_SET);
-                            write(mFodStatusFd, "1", 1);
+                            write(mFodStatusFd, v, 1);
                         }
+                        lastState = state;
                     }
-                    lastState = state;
                 }
                 usleep(500 * 1000);
             }
@@ -204,10 +195,10 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
                 warned = true;
             }
         }
-        // fod_status is permanently armed in init() — do not touch here.
-        // Toggling it 1/0 per finger-down/-up created a race window during
-        // screen-off transitions where the kernel suspended the touch IC
-        // with fod_status=0.
+        if (mFodStatusFd >= 0) {
+            const char* v = on ? "1" : "0";
+            write(mFodStatusFd, v, 1);
+        }
         if (mFodHbmFd >= 0) {
             const char* v = on ? "1" : "0";
             lseek(mFodHbmFd, 0, SEEK_SET);
