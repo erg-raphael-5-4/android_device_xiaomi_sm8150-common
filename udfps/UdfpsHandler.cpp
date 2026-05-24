@@ -11,6 +11,8 @@
 #include <android-base/logging.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <stdio.h>
+#include <string.h>
 #include <thread>
 #include <unistd.h>
 
@@ -27,6 +29,23 @@ static const char* kFodStatusPaths[] = {
         "/sys/touchpanel/fod_status",
         "/sys/devices/virtual/touch/tp_dev/fod_status",
 };
+
+// New sysfs added by the kernel patch — writing "1" triggers the panel's
+// DSI HBM-FOD command sequence (qcom,mdss-dsi-dispparam-hbm-fod-on-command).
+// This brightens only the FOD circle area at the panel level instead of
+// cranking the whole AMOLED via the backlight node. Falls back gracefully
+// if the kernel doesn't have the patch (open() returns -1).
+static const char* kFodHbmPath =
+        "/sys/devices/platform/soc/soc:qcom,dsi-display-primary/fod_hbm";
+
+// DRM connector exposes the panel power state: 0 = LCD_MODE_ON,
+// non-zero values = sleep / doze / off variants. We poll this to arm
+// fod_status before the touch IC enters suspend, so the IC enters
+// FOD-gesture mode (TP_GESTURE_DBCLK_FOD) instead of plain
+// double-tap-wake. Without arming, BTN_INFO never fires for screen-off
+// FOD touches and the FP sensor is never woken.
+static const char* kPanelPowerStatePath =
+        "/sys/class/drm/sde-conn-1-DSI-1/panel_power_state";
 
 static bool readBool(int fd) {
     char c;
@@ -67,6 +86,12 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
             LOG(ERROR) << "failed to open any fod_status node";
         }
 
+        mFodHbmFd = open(kFodHbmPath, O_WRONLY);
+        if (mFodHbmFd < 0) {
+            LOG(ERROR) << "failed to open fod_hbm node " << kFodHbmPath
+                       << " (kernel lacks the dsi_display fod_hbm patch?)";
+        }
+
         std::thread([this]() {
             int fodUiFd;
             for (auto& path : kFodUiPaths) {
@@ -98,6 +123,41 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
                 applyFodState(fodUi);
             }
         }).detach();
+
+        // Screen-state watcher: arms fod_status when the panel leaves
+        // LCD_MODE_ON (any non-zero state) so the touch IC enters
+        // FOD-gesture mode at suspend, and clears it when the panel
+        // returns to LCD_MODE_ON so screen-on flows can manage fod_status
+        // via onFingerDown/onFingerUp without interference.
+        std::thread([this]() {
+            int fd = open(kPanelPowerStatePath, O_RDONLY);
+            if (fd < 0) {
+                LOG(ERROR) << "failed to open panel_power_state: " << kPanelPowerStatePath;
+                return;
+            }
+            int lastState = -1;
+            while (true) {
+                char buf[8] = {0};
+                lseek(fd, 0, SEEK_SET);
+                int r = read(fd, buf, sizeof(buf) - 1);
+                if (r > 0) {
+                    int state = atoi(buf);
+                    if (state != lastState) {
+                        bool screenOff = (state != 0);
+                        LOG(INFO) << "panel_power_state " << lastState
+                                  << " -> " << state
+                                  << ", fod_status=" << (screenOff ? 1 : 0);
+                        if (mFodStatusFd >= 0) {
+                            const char* v = screenOff ? "1" : "0";
+                            lseek(mFodStatusFd, 0, SEEK_SET);
+                            write(mFodStatusFd, v, 1);
+                        }
+                        lastState = state;
+                    }
+                }
+                usleep(500 * 1000);
+            }
+        }).detach();
     }
 
     void onFingerDown(uint32_t /*x*/, uint32_t /*y*/, float /*minor*/, float /*major*/) {
@@ -122,6 +182,7 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
   private:
     fingerprint_device_t *mDevice;
     int mFodStatusFd = -1;
+    int mFodHbmFd = -1;
 
     void applyFodState(bool on) {
         if (mDevice && mDevice->extCmd) {
@@ -137,6 +198,11 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
         if (mFodStatusFd >= 0) {
             const char* v = on ? "1" : "0";
             write(mFodStatusFd, v, 1);
+        }
+        if (mFodHbmFd >= 0) {
+            const char* v = on ? "1" : "0";
+            lseek(mFodHbmFd, 0, SEEK_SET);
+            write(mFodHbmFd, v, 1);
         }
     }
 };
