@@ -57,6 +57,16 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
             LOG(INFO) << "  extCmd=" << reinterpret_cast<void*>(device->extCmd);
         }
 
+        for (auto& path : kFodStatusPaths) {
+            mFodStatusFd = open(path, O_WRONLY);
+            if (mFodStatusFd >= 0) {
+                break;
+            }
+        }
+        if (mFodStatusFd < 0) {
+            LOG(ERROR) << "failed to open any fod_status node";
+        }
+
         std::thread([this]() {
             int fodUiFd;
             for (auto& path : kFodUiPaths) {
@@ -69,14 +79,6 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
             if (fodUiFd < 0) {
                 LOG(ERROR) << "failed to open fd, err: " << fodUiFd;
                 return;
-            }
-
-            int fodStatusFd;
-            for (auto& path : kFodStatusPaths) {
-                fodStatusFd = open(path, O_WRONLY);
-                if (fodStatusFd >= 0) {
-                    break;
-                }
             }
 
             struct pollfd fodUiPoll = {
@@ -93,35 +95,21 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
                 }
 
                 bool fodUi = readBool(fodUiFd);
-
-                // mDevice may be NULL (init called with a null device) and
-                // extCmd is an Xiaomi-extended function pointer that some
-                // vendor fingerprint HAL blobs don't populate. Either of
-                // those would SIGSEGV at offset 0xd0; check both.
-                if (mDevice && mDevice->extCmd) {
-                    mDevice->extCmd(mDevice, COMMAND_NIT,
-                                    fodUi ? PARAM_NIT_FOD : PARAM_NIT_NONE);
-                } else {
-                    static bool warned = false;
-                    if (!warned) {
-                        LOG(WARNING) << "skipping HBM/NIT notify (mDevice="
-                                     << mDevice << " extCmd unavailable)";
-                        warned = true;
-                    }
-                }
-                if (fodStatusFd >= 0) {
-                    write(fodStatusFd, fodUi ? "1" : "0", 1);
-                }
+                applyFodState(fodUi);
             }
         }).detach();
     }
 
     void onFingerDown(uint32_t /*x*/, uint32_t /*y*/, float /*minor*/, float /*major*/) {
-        // nothing
+        // AIDL SystemUI calls us directly when the FOD circle is pressed;
+        // the legacy fod_ui display-driver path doesn't fire on this build,
+        // so the poll thread above never enables HBM or fod_status. Drive
+        // both ourselves here.
+        applyFodState(true);
     }
 
     void onFingerUp() {
-        // nothing
+        applyFodState(false);
     }
 
     void onAcquired(int32_t /*result*/, int32_t /*vendorCode*/) {
@@ -129,10 +117,28 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
     }
 
     void cancel() {
-        // nothing
+        applyFodState(false);
     }
   private:
     fingerprint_device_t *mDevice;
+    int mFodStatusFd = -1;
+
+    void applyFodState(bool on) {
+        if (mDevice && mDevice->extCmd) {
+            mDevice->extCmd(mDevice, COMMAND_NIT, on ? PARAM_NIT_FOD : PARAM_NIT_NONE);
+        } else {
+            static bool warned = false;
+            if (!warned) {
+                LOG(WARNING) << "skipping HBM/NIT notify (mDevice=" << mDevice
+                             << " extCmd unavailable)";
+                warned = true;
+            }
+        }
+        if (mFodStatusFd >= 0) {
+            const char* v = on ? "1" : "0";
+            write(mFodStatusFd, v, 1);
+        }
+    }
 };
 
 static UdfpsHandler* create() {
