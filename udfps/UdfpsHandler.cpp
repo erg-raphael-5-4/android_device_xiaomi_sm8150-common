@@ -51,6 +51,11 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
   public:
     void init(fingerprint_device_t *device) {
         mDevice = device;
+        LOG(INFO) << "UdfpsHandler init: device=" << device
+                  << (device ? " (non-null)" : " (NULL!)");
+        if (device) {
+            LOG(INFO) << "  extCmd=" << reinterpret_cast<void*>(device->extCmd);
+        }
 
         std::thread([this]() {
             int fodUiFd;
@@ -89,17 +94,18 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
 
                 bool fodUi = readBool(fodUiFd);
 
-                // extCmd is an Xiaomi-extended function pointer; some vendor
-                // fingerprint HAL blobs don't populate it. Crash-loop fixed
-                // by null-checking before invoking.
-                if (mDevice->extCmd) {
+                // mDevice may be NULL (init called with a null device) and
+                // extCmd is an Xiaomi-extended function pointer that some
+                // vendor fingerprint HAL blobs don't populate. Either of
+                // those would SIGSEGV at offset 0xd0; check both.
+                if (mDevice && mDevice->extCmd) {
                     mDevice->extCmd(mDevice, COMMAND_NIT,
                                     fodUi ? PARAM_NIT_FOD : PARAM_NIT_NONE);
                 } else {
                     static bool warned = false;
                     if (!warned) {
-                        LOG(WARNING) << "fingerprint_device_t::extCmd is NULL; "
-                                        "HBM/NIT notify to kernel skipped";
+                        LOG(WARNING) << "skipping HBM/NIT notify (mDevice="
+                                     << mDevice << " extCmd unavailable)";
                         warned = true;
                     }
                 }
