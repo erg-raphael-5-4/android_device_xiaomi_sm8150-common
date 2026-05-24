@@ -89,7 +89,20 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
 
                 bool fodUi = readBool(fodUiFd);
 
-                mDevice->extCmd(mDevice, COMMAND_NIT, fodUi ? PARAM_NIT_FOD : PARAM_NIT_NONE);
+                // extCmd is an Xiaomi-extended function pointer; some vendor
+                // fingerprint HAL blobs don't populate it. Crash-loop fixed
+                // by null-checking before invoking.
+                if (mDevice->extCmd) {
+                    mDevice->extCmd(mDevice, COMMAND_NIT,
+                                    fodUi ? PARAM_NIT_FOD : PARAM_NIT_NONE);
+                } else {
+                    static bool warned = false;
+                    if (!warned) {
+                        LOG(WARNING) << "fingerprint_device_t::extCmd is NULL; "
+                                        "HBM/NIT notify to kernel skipped";
+                        warned = true;
+                    }
+                }
                 if (fodStatusFd >= 0) {
                     write(fodStatusFd, fodUi ? "1" : "0", 1);
                 }
