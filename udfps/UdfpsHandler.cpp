@@ -30,13 +30,13 @@ static const char* kFodStatusPaths[] = {
         "/sys/devices/virtual/touch/tp_dev/fod_status",
 };
 
-static const char* kBacklightPath =
-        "/sys/class/backlight/panel0-backlight/brightness";
-// raphael's ea8076 panel reports max_brightness=2047. The goodix optical
-// sensor needs the panel at or near its peak to capture a usable image —
-// at the framework's default ~33/255 (~265 panel units) every frame fails
-// GF_HAL preprocess with errno=1011.
-#define FOD_BRIGHTNESS_MAX 2047
+// New sysfs added by the kernel patch — writing "1" triggers the panel's
+// DSI HBM-FOD command sequence (qcom,mdss-dsi-dispparam-hbm-fod-on-command).
+// This brightens only the FOD circle area at the panel level instead of
+// cranking the whole AMOLED via the backlight node. Falls back gracefully
+// if the kernel doesn't have the patch (open() returns -1).
+static const char* kFodHbmPath =
+        "/sys/devices/platform/soc/soc:qcom,dsi-display-primary/fod_hbm";
 
 // DRM connector exposes the panel power state: 0 = LCD_MODE_ON,
 // non-zero values = sleep / doze / off variants. We poll this to arm
@@ -86,9 +86,10 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
             LOG(ERROR) << "failed to open any fod_status node";
         }
 
-        mBacklightFd = open(kBacklightPath, O_RDWR);
-        if (mBacklightFd < 0) {
-            LOG(ERROR) << "failed to open backlight node " << kBacklightPath;
+        mFodHbmFd = open(kFodHbmPath, O_WRONLY);
+        if (mFodHbmFd < 0) {
+            LOG(ERROR) << "failed to open fod_hbm node " << kFodHbmPath
+                       << " (kernel lacks the dsi_display fod_hbm patch?)";
         }
 
         std::thread([this]() {
@@ -181,8 +182,7 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
   private:
     fingerprint_device_t *mDevice;
     int mFodStatusFd = -1;
-    int mBacklightFd = -1;
-    int mSavedBrightness = -1;
+    int mFodHbmFd = -1;
 
     void applyFodState(bool on) {
         if (mDevice && mDevice->extCmd) {
@@ -199,28 +199,10 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
             const char* v = on ? "1" : "0";
             write(mFodStatusFd, v, 1);
         }
-        if (mBacklightFd >= 0) {
-            if (on) {
-                char buf[16] = {0};
-                lseek(mBacklightFd, 0, SEEK_SET);
-                int r = read(mBacklightFd, buf, sizeof(buf) - 1);
-                if (r > 0) {
-                    int v = atoi(buf);
-                    if (v > 0 && v < FOD_BRIGHTNESS_MAX) {
-                        mSavedBrightness = v;
-                    }
-                }
-                char out[16];
-                int n = snprintf(out, sizeof(out), "%d\n", FOD_BRIGHTNESS_MAX);
-                lseek(mBacklightFd, 0, SEEK_SET);
-                write(mBacklightFd, out, n);
-            } else if (mSavedBrightness > 0) {
-                char out[16];
-                int n = snprintf(out, sizeof(out), "%d\n", mSavedBrightness);
-                lseek(mBacklightFd, 0, SEEK_SET);
-                write(mBacklightFd, out, n);
-                mSavedBrightness = -1;
-            }
+        if (mFodHbmFd >= 0) {
+            const char* v = on ? "1" : "0";
+            lseek(mFodHbmFd, 0, SEEK_SET);
+            write(mFodHbmFd, v, 1);
         }
     }
 };
