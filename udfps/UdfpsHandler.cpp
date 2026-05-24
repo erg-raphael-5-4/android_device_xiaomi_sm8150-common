@@ -38,6 +38,15 @@ static const char* kBacklightPath =
 // GF_HAL preprocess with errno=1011.
 #define FOD_BRIGHTNESS_MAX 2047
 
+// DRM connector exposes the panel power state: 0 = LCD_MODE_ON,
+// non-zero values = sleep / doze / off variants. We poll this to arm
+// fod_status before the touch IC enters suspend, so the IC enters
+// FOD-gesture mode (TP_GESTURE_DBCLK_FOD) instead of plain
+// double-tap-wake. Without arming, BTN_INFO never fires for screen-off
+// FOD touches and the FP sensor is never woken.
+static const char* kPanelPowerStatePath =
+        "/sys/class/drm/sde-conn-1-DSI-1/panel_power_state";
+
 static bool readBool(int fd) {
     char c;
     int rc;
@@ -111,6 +120,41 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
 
                 bool fodUi = readBool(fodUiFd);
                 applyFodState(fodUi);
+            }
+        }).detach();
+
+        // Screen-state watcher: arms fod_status when the panel leaves
+        // LCD_MODE_ON (any non-zero state) so the touch IC enters
+        // FOD-gesture mode at suspend, and clears it when the panel
+        // returns to LCD_MODE_ON so screen-on flows can manage fod_status
+        // via onFingerDown/onFingerUp without interference.
+        std::thread([this]() {
+            int fd = open(kPanelPowerStatePath, O_RDONLY);
+            if (fd < 0) {
+                LOG(ERROR) << "failed to open panel_power_state: " << kPanelPowerStatePath;
+                return;
+            }
+            int lastState = -1;
+            while (true) {
+                char buf[8] = {0};
+                lseek(fd, 0, SEEK_SET);
+                int r = read(fd, buf, sizeof(buf) - 1);
+                if (r > 0) {
+                    int state = atoi(buf);
+                    if (state != lastState) {
+                        bool screenOff = (state != 0);
+                        LOG(INFO) << "panel_power_state " << lastState
+                                  << " -> " << state
+                                  << ", fod_status=" << (screenOff ? 1 : 0);
+                        if (mFodStatusFd >= 0) {
+                            const char* v = screenOff ? "1" : "0";
+                            lseek(mFodStatusFd, 0, SEEK_SET);
+                            write(mFodStatusFd, v, 1);
+                        }
+                        lastState = state;
+                    }
+                }
+                usleep(500 * 1000);
             }
         }).detach();
     }
