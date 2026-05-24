@@ -11,6 +11,8 @@
 #include <android-base/logging.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <stdio.h>
+#include <string.h>
 #include <thread>
 #include <unistd.h>
 
@@ -27,6 +29,14 @@ static const char* kFodStatusPaths[] = {
         "/sys/touchpanel/fod_status",
         "/sys/devices/virtual/touch/tp_dev/fod_status",
 };
+
+static const char* kBacklightPath =
+        "/sys/class/backlight/panel0-backlight/brightness";
+// raphael's ea8076 panel reports max_brightness=2047. The goodix optical
+// sensor needs the panel at or near its peak to capture a usable image —
+// at the framework's default ~33/255 (~265 panel units) every frame fails
+// GF_HAL preprocess with errno=1011.
+#define FOD_BRIGHTNESS_MAX 2047
 
 static bool readBool(int fd) {
     char c;
@@ -65,6 +75,11 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
         }
         if (mFodStatusFd < 0) {
             LOG(ERROR) << "failed to open any fod_status node";
+        }
+
+        mBacklightFd = open(kBacklightPath, O_RDWR);
+        if (mBacklightFd < 0) {
+            LOG(ERROR) << "failed to open backlight node " << kBacklightPath;
         }
 
         std::thread([this]() {
@@ -122,6 +137,8 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
   private:
     fingerprint_device_t *mDevice;
     int mFodStatusFd = -1;
+    int mBacklightFd = -1;
+    int mSavedBrightness = -1;
 
     void applyFodState(bool on) {
         if (mDevice && mDevice->extCmd) {
@@ -137,6 +154,29 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
         if (mFodStatusFd >= 0) {
             const char* v = on ? "1" : "0";
             write(mFodStatusFd, v, 1);
+        }
+        if (mBacklightFd >= 0) {
+            if (on) {
+                char buf[16] = {0};
+                lseek(mBacklightFd, 0, SEEK_SET);
+                int r = read(mBacklightFd, buf, sizeof(buf) - 1);
+                if (r > 0) {
+                    int v = atoi(buf);
+                    if (v > 0 && v < FOD_BRIGHTNESS_MAX) {
+                        mSavedBrightness = v;
+                    }
+                }
+                char out[16];
+                int n = snprintf(out, sizeof(out), "%d\n", FOD_BRIGHTNESS_MAX);
+                lseek(mBacklightFd, 0, SEEK_SET);
+                write(mBacklightFd, out, n);
+            } else if (mSavedBrightness > 0) {
+                char out[16];
+                int n = snprintf(out, sizeof(out), "%d\n", mSavedBrightness);
+                lseek(mBacklightFd, 0, SEEK_SET);
+                write(mBacklightFd, out, n);
+                mSavedBrightness = -1;
+            }
         }
     }
 };
