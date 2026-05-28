@@ -56,6 +56,21 @@ on boot
     chown system system /sys/devices/virtual/touch/tp_dev/fod_status
     chmod 0644 /sys/devices/virtual/touch/tp_dev/fod_status
 
+    # Arm fod_status at boot so the touch IC always fires BTN_INFO on
+    # FOD-area touches. The fod_ui poll path in libudfpshandler reacts to
+    # POLLPRI events from the display driver, which require
+    # sde_connector_update_fod_hbm() to fire — that needs PLANE_PROP_FOD
+    # on a plane, which AOSP-16 SystemUI doesn't tag (the BLAST sublayer
+    # name no longer matches UDFPS_TOUCHED_LAYER_NAME). Without arming
+    # fod_status manually, the touch firmware never reports event_status
+    # & 0x88, the kernel's goodix_ts_input_report() never emits BTN_INFO,
+    # and the FP HAL never sees a press. Cost: touch IC stays in
+    # FOD-gesture mode at suspend (small extra power); BTN_INFO fires on
+    # every FOD-area touch (FP HW reset + scan, ignored if no auth
+    # session active).
+    write /sys/touchpanel/fod_status 1
+    write /sys/devices/virtual/touch/tp_dev/fod_status 1
+
 on post-fs-data
     mkdir /data/vendor/fpc 0770 system system
     mkdir /data/vendor/goodix 0770 system system
