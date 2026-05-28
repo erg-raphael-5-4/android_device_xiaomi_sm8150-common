@@ -193,7 +193,7 @@ ifeq ($(TARGET_HAS_UDFPS),true)
 PRODUCT_PACKAGES += \
     libudfpshandler
 
-$(call soong_config_set,surfaceflinger,udfps_lib,//hardware/xiaomi:libudfps_extension.xiaomi)
+$(call soong_config_set,surfaceflinger,udfps_lib,libudfps_extension.xiaomi)
 
 # Enable FOD_ZPOS cflag in the qcom-caf/sm8150 display HAL (HWComposer +
 # DRM device layer). With this, SurfaceFlinger's UDFPS overlay layer gets
