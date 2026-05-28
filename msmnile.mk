@@ -194,6 +194,17 @@ PRODUCT_PACKAGES += \
     libudfpshandler
 
 $(call soong_config_set,surfaceflinger,udfps_lib,//hardware/xiaomi:libudfps_extension.xiaomi)
+
+# Enable FOD_ZPOS cflag in the qcom-caf/sm8150 display HAL (HWComposer +
+# DRM device layer). With this, SurfaceFlinger's UDFPS overlay layer gets
+# tagged via FOD_PRESSED_LAYER_ZORDER on touch, HWComposer relays the bit
+# to the DRM atomic plane z_order, sde_plane sets PLANE_PROP_FOD=1, and
+# sde_crtc_fod_atomic_check / sde_connector_update_fod_hbm then handle
+# the dim layer + HBM-FOD DSI command automatically per-frame. Without
+# this Soong var, the whole pipeline is compiled out and HBM-FOD must be
+# driven manually (which causes whole-screen brightening since the dim
+# layer is never created).
+$(call soong_config_set,qtidisplay,udfps,true)
 endif
 endif
 

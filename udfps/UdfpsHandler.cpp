@@ -211,11 +211,12 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
             const char* v = on ? "1" : "0";
             write(mFodStatusFd, v, 1);
         }
-        if (mFodHbmFd >= 0) {
-            const char* v = on ? "1" : "0";
-            lseek(mFodHbmFd, 0, SEEK_SET);
-            write(mFodHbmFd, v, 1);
-        }
+        // fod_hbm is intentionally NOT written here. With FOD_ZPOS enabled,
+        // the SurfaceFlinger -> HWComposer -> DRM -> sde_plane PLANE_PROP_FOD
+        // path automatically marks the UDFPS overlay as the FOD plane; the
+        // kernel's sde_connector_update_fod_hbm() hook then fires HBM-FOD
+        // on/off per frame with the proper kickoff-context locking. Writing
+        // fod_hbm from here would race that hook.
     }
 };
 
