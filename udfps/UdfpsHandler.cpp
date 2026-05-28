@@ -176,6 +176,18 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
         // nothing
     }
 
+    void onAuthenticationSucceeded() {
+        // SystemUI's onPointerUp arrives AFTER the framework tears down the
+        // auth session (logged as "onPointerUp received during client: null"),
+        // so onFingerUp never reaches us and HBM/brightness stays on. Drop
+        // the FOD state here from the auth-complete path instead.
+        applyFodState(false);
+    }
+
+    void onAuthenticationFailed() {
+        applyFodState(false);
+    }
+
     void cancel() {
         applyFodState(false);
     }
