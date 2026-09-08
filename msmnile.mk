@@ -259,10 +259,8 @@ PRODUCT_PACKAGES += \
 
 # Media configs
 PRODUCT_PACKAGES += \
-    media_codecs.xml \
     media_codecs_c2.xml \
-    media_codecs_performance.xml \
-    system_properties.xml
+    media_codecs_performance_c2.xml
 
 # NFC
 PRODUCT_PACKAGES += \
@@ -277,16 +275,6 @@ PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.nfc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_nfc/android.hardware.nfc.xml \
     frameworks/native/data/etc/android.hardware.se.omapi.uicc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_nfc/android.hardware.se.omapi.uicc.xml \
     frameworks/native/data/etc/com.android.nfc_extras.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_nfc/com.android.nfc_extras.xml
-
-# OMX
-PRODUCT_PACKAGES += \
-    libavservices_minijail \
-    libc2dcolorconvert \
-    libOmxCore \
-    libOmxVdec \
-    libOmxVenc \
-    libstagefrighthw \
-    libstagefright_softomx_plugin.vendor
 
 # Overlays
 PRODUCT_PACKAGES += \
