@@ -159,34 +159,17 @@ PRODUCT_PACKAGES += \
     XiaomiParts
 
 # Display
-#
-# Uses the sm8150 display HAL, which matches this SoC and this kernel: its FOD
-# path is gated on FOD_ZPOS (enabled via the qtidisplay.udfps Soong config
-# below) and the sm8150 kernel is the one that implements PLANE_PROP_FOD,
-# sde_crtc_fod_atomic_check and the fod_ui sysfs. The sm8350 tree previously
-# used here provides vendor.qti.hardware.display.composer@3.0 and is disabled;
-# the sm8350 kernel has no FOD support at all.
-#
-# sm8150 ships hwcomposer.qcom (an HWC2 module) rather than a standalone
-# composer service, so the AOSP graphics.composer@2.4 service loads it. The
-# HAL is declared by the tree's own VINTF fragment
-# (android.hardware.graphics.composer-qti-display.xml) -- do not also declare
-# it in manifest.xml or check_vintf fails with a duplicate FqInstance.
 PRODUCT_PACKAGES += \
-    android.hardware.graphics.composer@2.4-service \
-    android.hardware.graphics.composer-qti-display.xml \
     android.hardware.graphics.mapper@3.0-impl-qti-display \
     android.hardware.graphics.mapper@4.0-impl-qti-display \
-    hwcomposer.qcom \
-    vendor.qti.hardware.display.allocator-service
+    vendor.qti.hardware.display.allocator-service \
+    vendor.qti.hardware.display.composer-service \
+    vendor.qti.hardware.display.composer-service.rc \
+    vendor.qti.hardware.display.composer-service.xml
 
 PRODUCT_PACKAGES += \
     vendor.qti.hardware.memtrack-service
 
-# Still sourced from sm8350: the sm8150 display tree does not ship this file.
-# It is a config for the closed snapdragon-color-libs blob, not a build artifact
-# of the display HAL, so a plain PRODUCT_COPY_FILES from the disabled sm8350
-# tree is unaffected by that tree's Android.bp files being commented out.
 PRODUCT_COPY_FILES += \
     hardware/qcom-caf/sm8350/display/config/snapdragon_color_libs_config.xml:$(TARGET_COPY_OUT_VENDOR)/etc/snapdragon_color_libs_config.xml
 
