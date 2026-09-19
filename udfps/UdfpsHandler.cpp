@@ -15,6 +15,8 @@
 #include <linux/input.h>
 #include <mutex>
 #include <poll.h>
+#include <stdlib.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <thread>
@@ -52,6 +54,29 @@ static const char* kFodHbmPaths[] = {
         "/sys/devices/platform/soc/soc:qcom,dsi-display/fod_hbm",
 };
 
+/*
+ * Panel backlight. The sensor is optical: its only light source is the pixels
+ * above it, so exposure is whatever the backlight happens to be. Under
+ * auto-brightness that differs on every attempt, which is what made unlock
+ * erratic -- the lockscreen is the worst case, since the panel is at its
+ * dimmest right when the sensor needs light.
+ *
+ * The panel ships a FOD dim LUT (qcom,disp-fod-dim-lut, backlight -> alpha)
+ * for exactly this: the intended flow drives the panel to full HBM and
+ * composites a dim layer *under* the FOD circle, so the circle always emits
+ * maximum light while the rest of the screen still looks like the user's
+ * setting. That layer is built in-kernel from PLANE_PROP_FOD, which never
+ * reaches the driver on this build, so emulate the part that matters: pin the
+ * backlight to max for the duration of the press, restore it after.
+ *
+ * Measured: image_quality 16-21 at backlight 110, 42-55 at 332-800, clean
+ * enrolment at 2047. Do not add light by other means -- a white icon at max
+ * backlight over-exposes and every capture is rejected with
+ * GF_ERROR_ACQUIRED_PARTIAL. The stock cyan icon is part of this calibration.
+ */
+static const char* kBrightnessPath = "/sys/class/backlight/panel0-backlight/brightness";
+static const char* kMaxBrightnessPath = "/sys/class/backlight/panel0-backlight/max_brightness";
+
 static bool readBool(int fd) {
     char c;
     int rc;
@@ -69,6 +94,33 @@ static bool readBool(int fd) {
     }
 
     return c != '0';
+}
+
+static int readIntFile(const char* path) {
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        return -1;
+    }
+
+    char buf[32] = {0};
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    return n > 0 ? atoi(buf) : -1;
+}
+
+static void writeIntFile(const char* path, int value) {
+    int fd = open(path, O_WRONLY);
+    if (fd < 0) {
+        LOG(ERROR) << "failed to open " << path;
+        return;
+    }
+
+    char buf[32];
+    int len = snprintf(buf, sizeof(buf), "%d", value);
+    if (write(fd, buf, len) < 0) {
+        LOG(ERROR) << "failed to write " << value << " to " << path;
+    }
+    close(fd);
 }
 
 static void writeBool(int fd, bool value) {
@@ -156,6 +208,9 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
          * cancelled the init.rc workaround on every boot.
          */
         writeBool(mFodStatusFd, true);
+
+        mMaxBrightness = readIntFile(kMaxBrightnessPath);
+        LOG(INFO) << "max brightness = " << mMaxBrightness;
 
         std::thread([this]() {
             int fodUiFd = -1;
@@ -262,6 +317,13 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
 
         LOG(INFO) << "setFodState(" << enabled << ")";
 
+        if (enabled) {
+            mSavedBrightness = readIntFile(kBrightnessPath);
+            if (mMaxBrightness > 0) {
+                writeIntFile(kBrightnessPath, mMaxBrightness);
+            }
+        }
+
         // Illuminate before telling the HAL, so the sensor has light to capture with.
         writeBool(mFodHbmFd, enabled);
 
@@ -272,6 +334,9 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
         // Keep the touch IC armed; never disarm it.
         if (enabled) {
             writeBool(mFodStatusFd, true);
+        } else if (mSavedBrightness >= 0) {
+            writeIntFile(kBrightnessPath, mSavedBrightness);
+            mSavedBrightness = -1;
         }
     }
 
@@ -279,6 +344,8 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
     int mFodStatusFd = -1;
     int mFodHbmFd = -1;
     bool mFodActive = false;
+    int mSavedBrightness = -1;
+    int mMaxBrightness = -1;
     std::mutex mFodLock;
 };
 
