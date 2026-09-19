@@ -210,8 +210,20 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
 
             struct input_event ev;
             while (read(touchFd, &ev, sizeof(ev)) == sizeof(ev)) {
-                if (ev.type == EV_KEY && ev.code == BTN_INFO) {
-                    setFodState(ev.value != 0);
+                /*
+                 * Release only. BTN_INFO fires on every FOD-area touch,
+                 * including while the panel is suspended, and writing fod_hbm
+                 * then pushes a DSI command sequence at a powered-down panel:
+                 * the link wedges, the ESD check trips and the driver reports
+                 * PANEL_DEAD, leaving a black screen until reboot.
+                 *
+                 * Turning HBM *on* therefore stays gated on onFingerDown,
+                 * which only arrives while a FOD session is actually up.
+                 * Turning it *off* here is safe -- setFodState() is a no-op
+                 * unless we previously turned it on for a live session.
+                 */
+                if (ev.type == EV_KEY && ev.code == BTN_INFO && ev.value == 0) {
+                    setFodState(false);
                 }
             }
 
