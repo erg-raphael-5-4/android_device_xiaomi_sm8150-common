@@ -9,10 +9,22 @@
 #include "UdfpsHandler.h"
 
 #include <android-base/logging.h>
+#include <dirent.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <linux/input.h>
+#include <mutex>
 #include <poll.h>
+#include <string.h>
+#include <sys/ioctl.h>
 #include <thread>
 #include <unistd.h>
+
+/*
+ * Emitted by the goodix touch driver on a FOD-area press/release. Defined only
+ * in the driver's own header (goodix_ts_core.h), so repeat it here.
+ */
+#define BTN_INFO 0x152
 
 #define COMMAND_NIT 10
 #define PARAM_NIT_FOD 1
@@ -68,6 +80,53 @@ static void writeBool(int fd, bool value) {
     if (write(fd, value ? "1" : "0", 1) < 0) {
         LOG(ERROR) << "failed to write " << value << " to fd " << fd;
     }
+}
+
+/*
+ * The goodix touch device, by name. BTN_INFO comes from this node and is the
+ * only finger-up signal that is always delivered: the framework drops
+ * onPointerUp once the auth client is torn down ("onPointerUp received during
+ * client: null"), and the HAL stops emitting onAcquired(7, 23) at the same
+ * point, so HBM would otherwise stay lit indefinitely after a match.
+ */
+static int openTouchDevice() {
+    DIR* dir = opendir("/dev/input");
+    if (!dir) {
+        LOG(ERROR) << "failed to open /dev/input";
+        return -1;
+    }
+
+    int fd = -1;
+    struct dirent* ent;
+    while ((ent = readdir(dir)) != nullptr) {
+        if (strncmp(ent->d_name, "event", 5) != 0) {
+            continue;
+        }
+
+        char path[PATH_MAX];
+        snprintf(path, sizeof(path), "/dev/input/%s", ent->d_name);
+
+        int tmp = open(path, O_RDONLY);
+        if (tmp < 0) {
+            continue;
+        }
+
+        char name[128] = {0};
+        if (ioctl(tmp, EVIOCGNAME(sizeof(name) - 1), name) >= 0 &&
+            strstr(name, "goodix_ts") != nullptr) {
+            LOG(INFO) << "watching " << path << " (" << name << ") for BTN_INFO";
+            fd = tmp;
+            break;
+        }
+
+        close(tmp);
+    }
+
+    closedir(dir);
+    if (fd < 0) {
+        LOG(ERROR) << "goodix touch device not found";
+    }
+    return fd;
 }
 
 class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
@@ -138,6 +197,27 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
                 }
             }
         }).detach();
+
+        /*
+         * Authoritative finger up/down. Driven by the kernel, so it survives
+         * the auth client going away mid-press.
+         */
+        std::thread([this]() {
+            int touchFd = openTouchDevice();
+            if (touchFd < 0) {
+                return;
+            }
+
+            struct input_event ev;
+            while (read(touchFd, &ev, sizeof(ev)) == sizeof(ev)) {
+                if (ev.type == EV_KEY && ev.code == BTN_INFO) {
+                    setFodState(ev.value != 0);
+                }
+            }
+
+            LOG(ERROR) << "BTN_INFO read loop ended";
+            close(touchFd);
+        }).detach();
     }
 
     void onFingerDown(uint32_t /*x*/, uint32_t /*y*/, float /*minor*/, float /*major*/) {
@@ -161,6 +241,8 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
 
   private:
     void setFodState(bool enabled) {
+        std::lock_guard<std::mutex> lock(mFodLock);
+
         if (mFodActive == enabled) {
             return;
         }
@@ -185,6 +267,7 @@ class XiaomiMsmnileUdfpsHandler : public UdfpsHandler {
     int mFodStatusFd = -1;
     int mFodHbmFd = -1;
     bool mFodActive = false;
+    std::mutex mFodLock;
 };
 
 static UdfpsHandler* create() {
