@@ -177,7 +177,6 @@ PRODUCT_PACKAGES += \
     android.hardware.graphics.composer-qti-display.xml \
     android.hardware.graphics.mapper@3.0-impl-qti-display \
     android.hardware.graphics.mapper@4.0-impl-qti-display \
-    gralloc.qcom \
     hwcomposer.qcom \
     vendor.qti.hardware.display.allocator-service
 
