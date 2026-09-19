@@ -123,7 +123,19 @@ vendor.audio.feature.multi_voice_session.enable=true
 vendor.audio.feature.ras.enable=true
 vendor.audio.feature.record_play_concurency.enable=false
 vendor.audio.feature.snd_mon.enable=true
-vendor.audio.feature.spkr_prot.enable=true
+# Qualcomm speaker protection needs a VI-feedback capture path. raphael has
+# none: SPKR_CALIB_TX maps to PCM 40, which does not exist on this card, so
+# the amplifier HAL logs "cannot open device 40 for card 0" and calibration
+# can never run. The TFA9874 does its own protection in firmware instead.
+#
+# Leaving this on is not merely useless, it is actively harmful: the voice
+# path in platform.c gates on audio_extn_spkr_prot_is_enabled() and rewrites
+# SND_DEVICE_OUT_VOICE_SPEAKER to SND_DEVICE_OUT_VOICE_SPEAKER_PROTECTED,
+# which has no backend/interface mapping in audio_platform_info.xml. The
+# stream then misses QUAT_MI2S_RX, where the TFA amp lives, and in-call
+# speaker is silent. Media is unaffected because that rewrite only exists on
+# the voice path.
+vendor.audio.feature.spkr_prot.enable=false
 vendor.audio.feature.src_trkn.enable=true
 vendor.audio.feature.ssrec.enable=true
 vendor.audio.feature.usb_offload_burst_mode.enable=true
