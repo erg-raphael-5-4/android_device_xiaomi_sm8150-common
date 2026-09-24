@@ -226,6 +226,16 @@ vendor.display.disable_decimation=1
 vendor.display.disable_excl_rect=0
 vendor.display.disable_hw_recovery_dump=1
 vendor.display.disable_inline_rotator=1
+# The V4L2 offline rotator rejects every buffer (VIDIOC_QBUF -> EINVAL) on
+# this display stack, and a failed rotator commit fails the entire layer
+# stack -- camera preview blanks the screen. Route rotated layers through
+# GPU composition instead; hardware composition is unaffected elsewhere.
+vendor.display.disable_offline_rotator=1
+# With no rotator available SDM would still take a rotated layer on hardware
+# and drop the transform, putting the camera preview on screen 90 degrees out.
+# Send rotated layers to GPU composition instead; the rest of the stack keeps
+# composing on the DPU.
+vendor.display.force_gpu_rotation=1
 vendor.display.disable_scaler=0
 vendor.display.disable_ui_3d_tonemap=1
 vendor.display.enable_default_color_mode=0
