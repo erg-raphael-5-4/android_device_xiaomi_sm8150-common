@@ -99,6 +99,10 @@ TARGET_KERNEL_CONFIG := \
     vendor/debugfs.config \
     vendor/xiaomi/sm8150-common.config
 
+# The "Linux version" banner (/proc/version) embeds the build machine's
+# user@host unless told otherwise. Use the project name instead.
+TARGET_KERNEL_ADDITIONAL_FLAGS := KBUILD_BUILD_USER=RaphGhost KBUILD_BUILD_HOST=RaphGhost
+
 # Media
 TARGET_USES_ION := true
 
