@@ -32,3 +32,10 @@ allow devicesettings_app sysfs_thermal:file w_file_perms;
 hal_client_domain(devicesettings_app, hal_motor)
 binder_call(devicesettings_app, hal_motor)
 binder_call(hal_motor, devicesettings_app)
+
+# SoundPool (pop-up camera sounds) decodes in-process; the extractor and the
+# Codec2 software codec look up unset media tuning properties such as
+# media.stagefright.extractremote and ro.com.android.media.swcodec.ion.*,
+# which fall back to default_prop. Only coredomain may read that type, and the
+# lookups return "unset" either way, so don't audit them.
+dontaudit devicesettings_app default_prop:file read;
