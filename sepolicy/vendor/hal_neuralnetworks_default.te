@@ -3,3 +3,8 @@ r_dir_file(vendor_hal_neuralnetworks_default, vendor_public_adsprpcd_file)
 
 # Allow reading ADSP properties
 get_prop(vendor_hal_neuralnetworks_default, vendor_adsprpc_prop)
+
+# The prebuilt QTI NN HAL looks up a property that has no label (it falls back
+# to default_prop, which only coredomain may read) once at start. The lookup
+# can't succeed either way; don't audit it.
+dontaudit vendor_hal_neuralnetworks_default default_prop:file read;
