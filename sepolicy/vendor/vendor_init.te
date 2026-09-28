@@ -19,3 +19,9 @@ allow vendor_init vendor_ipa_dev:file create_file_perms;
 
 # Allow to shoot itself
 allow vendor_init self:capability kill;
+
+# Custom recoveries (OrangeFox .foxs, TWRP/OrangeFox recovery/) leave files on
+# persist labelled media_rw_data_file. restorecon_recursive /mnt/vendor/persist
+# stats them; vendor_init can't be given access to that core data type, and it
+# has nothing to relabel there, so don't audit the walk.
+dontaudit vendor_init media_rw_data_file:{ dir file } getattr;
