@@ -1,6 +1,6 @@
 # Radio
 persist.data.df.iwlan_mux=9
-persist.radio.dynamic_sar=false
+persist.vendor.radio.dynamic_sar=false
 persist.radio.multisim.config=dsds
 persist.radio.NO_STAPA=1
 persist.radio.VT_HYBRID_ENABLE=1
