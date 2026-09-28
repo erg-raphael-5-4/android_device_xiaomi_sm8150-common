@@ -60,6 +60,7 @@
 /vendor/bin/mlipayd@1\.1                                                                            u:object_r:hal_mlipay_default_exec:s0
 
 # Persist subsystem
+/mnt/vendor/persist/sensors/registry(/.*)?                                                          u:object_r:vendor_persist_sensors_file:s0
 /mnt/vendor/persist/subsys(/.*)?                                                                    u:object_r:vendor_persist_subsys_file:s0
 
 # Sensors
