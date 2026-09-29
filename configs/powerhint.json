@@ -463,18 +463,6 @@
       "HoldFd": true
     },
     {
-      "Name": "UfsClkGateEnable",
-      "Paths": [
-        "/sys/devices/platform/soc/1d84000.ufshc/clkgate_enable"
-      ],
-      "Values": [
-        "0",
-        "1"
-      ],
-      "DefaultIndex": 1,
-      "ResetOnInit": true
-    },
-    {
       "Name": "CameraHalCpuset",
       "Paths": [
         "/dev/cpuset/camera-daemon/cpus"
@@ -698,12 +686,6 @@
       "Node": "PMQoSCpuDmaLatency",
       "Duration": 3000,
       "Value": "2c"
-    },
-    {
-      "PowerHint": "LAUNCH",
-      "Node": "UfsClkGateEnable",
-      "Duration": 3000,
-      "Value": "0"
     },
     {
       "PowerHint": "LAUNCH",
