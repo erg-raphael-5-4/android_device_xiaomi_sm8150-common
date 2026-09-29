@@ -99,6 +99,11 @@ TARGET_KERNEL_CONFIG := \
     vendor/debugfs.config \
     vendor/xiaomi/sm8150-common.config
 
+# Build the kernel with the same clang as the standalone AnyKernel3
+# releases. prebuilts/clang/host/linux-x86 on this branch predates
+# clang-r596125, so the toolchain has to be added to it separately.
+TARGET_KERNEL_CLANG_VERSION := r596125
+
 # The "Linux version" banner (/proc/version) embeds the build machine's
 # user@host unless told otherwise. Use the project name instead.
 TARGET_KERNEL_ADDITIONAL_FLAGS := KBUILD_BUILD_USER=RaphGhost KBUILD_BUILD_HOST=RaphGhost
