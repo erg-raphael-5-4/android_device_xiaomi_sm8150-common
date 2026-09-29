@@ -282,6 +282,12 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     vendor.lineage.livedisplay-service.sdm
 
+# No LiveDisplay colour profiles: the colour mode (Settings > Display >
+# Colors) already selects the panel's QDCM mode through SurfaceFlinger. With
+# both, the HAL applied the calibration's default (sRGB) at startup and the two
+# settings disagreed. Picture adjustment stays.
+$(call soong_config_set_bool,livedisplay_sdm,enable_dm,false)
+
 # Media configs
 PRODUCT_PACKAGES += \
     media_codecs_c2.xml \
