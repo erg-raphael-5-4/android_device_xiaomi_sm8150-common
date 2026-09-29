@@ -9,3 +9,13 @@ allow hal_power_default vendor_latency_device:chr_file rw_file_perms;
 # cpufreq-hw specific
 allow hal_power_default proc:file { write open };
 allow hal_power_default sysfs:file { write open };
+
+# ADPF: adjust scheduling of the threads in hint sessions
+# (as in hardware/google/pixel-sepolicy/power-libperfmgr)
+# Apps run with per-user MLS categories; setsched on them needs this.
+typeattribute hal_power_default mlstrustedsubject;
+allow hal_power_default self:capability sys_nice;
+allow hal_power_default appdomain:process { getsched setsched };
+allow hal_power_default surfaceflinger:process setsched;
+allow hal_power_default hal_graphics_composer_default:process setsched;
+allow hal_power_default system_server:process setsched;
