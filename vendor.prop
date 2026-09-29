@@ -204,14 +204,16 @@ dalvik.vm.heapstartsize=8m
 dalvik.vm.heaptargetutilization=0.75
 
 # Display
-# Default to the Natural (sRGB) colour mode. In DISPLAY_P3 the HWC takes no
-# layers and SurfaceFlinger composites the whole screen on the GPU every
-# frame; measured on raphael: ~19% more power at idle, ~29% while scrolling.
-# native_mode 0 + color_saturation 1.0 = COLOR_MODE_NATURAL. Vivid/Automatic
-# stay selectable in Settings.
-persist.sys.sf.color_mode=7
+# Default to the Saturated colour mode: SurfaceFlinger runs the panel in its
+# native gamut (QDCM "native" mode) without colour management. Natural and
+# Boosted use the calibrated sRGB mode, which looks washed out on this
+# wide-gamut OLED; Automatic (DISPLAY_P3) makes the HWC reject every layer so
+# SurfaceFlinger composites the whole screen on the GPU (measured ~19% more
+# power at idle, ~29% scrolling). Native keeps device composition.
+# native_mode 1 = COLOR_MODE_SATURATED; the others stay selectable.
+persist.sys.sf.color_mode=0
 persist.sys.sf.color_saturation=1.0
-persist.sys.sf.native_mode=0
+persist.sys.sf.native_mode=1
 ro.surface_flinger.enable_frame_rate_override=false
 ro.surface_flinger.has_HDR_display=true
 ro.surface_flinger.has_wide_color_display=true
