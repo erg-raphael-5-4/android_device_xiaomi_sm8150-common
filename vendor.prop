@@ -297,6 +297,9 @@ vendor.power.pasr.enabled=false
 # Perf
 ro.vendor.extension_library=libqti-perfd-client.so
 
+# Power
+vendor.powerhal.disp.idle_support=false
+
 # Qualcomm System Daemon
 persist.vendor.qcomsysd.enabled=1
 
