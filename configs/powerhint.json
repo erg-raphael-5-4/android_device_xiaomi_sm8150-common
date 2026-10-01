@@ -172,7 +172,7 @@
         "/sys/class/kgsl/kgsl-3d0/devfreq/max_freq"
       ],
       "Values": [
-        "585000000",
+        "675000000",
         "427000000"
       ],
       "DefaultIndex": 0,
