@@ -52,3 +52,13 @@ persist.vendor.ssr.restart_level=ALL_ENABLE
 
 # Zygote
 persist.device_config.runtime_native.usap_pool_enabled=true
+
+# Logging
+# Telephony checks satellite support constantly and logs at D/V each time,
+# although this device has no satellite config.
+log.tag.SatelliteController=I
+log.tag.TelephonyConfigUpdateInstallReceiver=I
+# cnss-daemon logs every Wi-Fi driver netlink event at I.
+log.tag.cnss-daemon=W
+# imsdatadaemon retries the diag driver, which this kernel doesn't build.
+log.tag.Diag_Lib=F
