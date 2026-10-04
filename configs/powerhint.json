@@ -232,6 +232,18 @@
       "ResetOnInit": true
     },
     {
+      "Name": "DisplayWakeup",
+      "Paths": [
+        "/sys/devices/platform/soc/ae00000.qcom,mdss_mdp/drm/card0/sde-crtc-0/early_wakeup"
+      ],
+      "Values": [
+        "1",
+        "0"
+      ],
+      "DefaultIndex": 1,
+      "ResetOnInit": true
+    },
+    {
       "Name": "CPUBWHystTriggerCount",
       "Paths": [
         "/sys/class/devfreq/soc:qcom,cpu-cpu-llcc-bw/bw_hwmon/hyst_trigger_count"
@@ -630,6 +642,12 @@
       "PowerHint": "DISPLAY_UPDATE_IMMINENT",
       "Node": "TAUClampLatency",
       "Duration": 50,
+      "Value": "1"
+    },
+    {
+      "PowerHint": "DISPLAY_UPDATE_IMMINENT",
+      "Node": "DisplayWakeup",
+      "Duration": 60,
       "Value": "1"
     },
     {
