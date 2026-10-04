@@ -174,11 +174,11 @@
     {
       "Name": "GPUMaxFreq",
       "Paths": [
-        "/sys/class/kgsl/kgsl-3d0/devfreq/max_freq"
+        "/sys/class/kgsl/kgsl-3d0/max_pwrlevel"
       ],
       "Values": [
-        "675000000",
-        "427000000"
+        "0",
+        "2"
       ],
       "DefaultIndex": 0,
       "ResetOnInit": true
@@ -186,14 +186,13 @@
     {
       "Name": "GPUMinFreq",
       "Paths": [
-        "/sys/class/kgsl/kgsl-3d0/devfreq/min_freq"
+        "/sys/class/kgsl/kgsl-3d0/min_pwrlevel"
       ],
       "Values": [
-        "585000000",
-        "427000000",
-        "257000000"
+        "2",
+        "5"
       ],
-      "DefaultIndex": 2,
+      "DefaultIndex": 1,
       "ResetOnInit": true
     },
     {
@@ -767,7 +766,7 @@
       "PowerHint": "GAME_LOADING",
       "Node": "GPUMinFreq",
       "Duration": 3000,
-      "Value": "427000000"
+      "Value": "2"
     },
     {
       "PowerHint": "CAMERA_LAUNCH",
@@ -1049,7 +1048,7 @@
       "PowerHint": "EXPENSIVE_RENDERING",
       "Node": "GPUMinFreq",
       "Duration": 0,
-      "Value": "427000000"
+      "Value": "2"
     },
     {
       "PowerHint": "SUSTAINED_PERFORMANCE",
@@ -1079,7 +1078,7 @@
       "PowerHint": "SUSTAINED_PERFORMANCE",
       "Node": "GPUMaxFreq",
       "Duration": 0,
-      "Value": "427000000"
+      "Value": "2"
     },
     {
       "PowerHint": "SUSTAINED_PERFORMANCE",
@@ -1103,7 +1102,7 @@
       "PowerHint": "LOW_POWER",
       "Node": "GPUMaxFreq",
       "Duration": 0,
-      "Value": "427000000"
+      "Value": "2"
     },
     {
       "PowerHint": "LOW_POWER",
