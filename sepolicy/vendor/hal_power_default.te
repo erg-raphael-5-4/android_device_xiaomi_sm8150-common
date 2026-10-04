@@ -19,3 +19,6 @@ allow hal_power_default appdomain:process { getsched setsched };
 allow hal_power_default surfaceflinger:process setsched;
 allow hal_power_default hal_graphics_composer_default:process setsched;
 allow hal_power_default system_server:process setsched;
+
+# Display idle state (libperfmgr InteractionHandler polls idle_state)
+r_dir_file(hal_power_default, vendor_sysfs_graphics)
