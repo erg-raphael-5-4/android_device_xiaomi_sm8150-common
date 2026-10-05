@@ -73,6 +73,19 @@ public class PopupCameraService extends Service implements Handler.Callback {
     private SoundPool mSoundPool;
 
     private String[] mLightNodes;
+    private String[] mLightSavedBrightness;
+    private String[] mLightSavedStepMs;
+    private final Runnable mLightOff = this::lightOff;
+
+    // The pop-up effect is one pass of the device tree's camera pattern
+    // (qcom,lut-patterns-camera, 43 steps rising to 100 and back to 0),
+    // started at step 10 (32%) so it shows as soon as the motor moves, at
+    // 50 ms per step. One pass ends on the pattern's dark end.
+    private static final int LIGHT_PATTERN_STEPS = 43;
+    private static final int LIGHT_START_STEP = 10;
+    private static final int LIGHT_STEP_MS = 50;
+    private static final long LIGHT_EFFECT_MS =
+            (LIGHT_PATTERN_STEPS - LIGHT_START_STEP) * LIGHT_STEP_MS;
 
     private IMotorCallback mMotorCallback = new IMotorCallback.Stub() {
         @Override
@@ -312,18 +325,60 @@ public class PopupCameraService extends Service implements Handler.Callback {
         }
     }
 
-    private void lightUp() {
-        if (mPopupCameraPreferences.isLedAllowed()) {
-            for (String node : mLightNodes) {
-                FileUtils.writeLine(node, "1");
-            }
+    private static String lightSibling(String node, String name) {
+        return node.substring(0, node.lastIndexOf('/') + 1) + name;
+    }
 
-            mHandler.postDelayed(() -> {
-                for (String node : mLightNodes) {
-                    FileUtils.writeLine(node, "0");
-                }
-            }, 2300);
+    private void lightUp() {
+        if (!mPopupCameraPreferences.isLedAllowed()) {
+            return;
         }
+
+        // Keep the LED's level and ramp step from before the effect (the
+        // lights HAL's, e.g. the charging light) to restore them afterwards;
+        // ending the breath turns the LED off. Not re-read while an effect is
+        // still running, when they hold the effect's own values.
+        if (mLightSavedBrightness == null) {
+            mLightSavedBrightness = new String[mLightNodes.length];
+            mLightSavedStepMs = new String[mLightNodes.length];
+            for (int i = 0; i < mLightNodes.length; i++) {
+                mLightSavedBrightness[i] =
+                        FileUtils.readOneLine(lightSibling(mLightNodes[i], "brightness"));
+                mLightSavedStepMs[i] =
+                        FileUtils.readOneLine(lightSibling(mLightNodes[i], "step_ms"));
+            }
+        }
+
+        // Every pop-up or take-back plays one pass from the start: stop a pass
+        // that is still running, then select the camera pattern (lut_pattern
+        // resets the start step, so it goes first), the start step and the
+        // speed, and breathe.
+        mHandler.removeCallbacks(mLightOff);
+        for (String node : mLightNodes) {
+            FileUtils.writeLine(node, "0");
+            FileUtils.writeLine(lightSibling(node, "lut_pattern"), "1");
+            FileUtils.writeLine(lightSibling(node, "lo_idx"), String.valueOf(LIGHT_START_STEP));
+            FileUtils.writeLine(lightSibling(node, "step_ms"), String.valueOf(LIGHT_STEP_MS));
+            FileUtils.writeLine(node, "1");
+        }
+        mHandler.postDelayed(mLightOff, LIGHT_EFFECT_MS);
+    }
+
+    private void lightOff() {
+        for (int i = 0; i < mLightNodes.length; i++) {
+            FileUtils.writeLine(mLightNodes[i], "0");
+            FileUtils.writeLine(lightSibling(mLightNodes[i], "lut_pattern"), "0");
+            if (mLightSavedStepMs != null && mLightSavedStepMs[i] != null) {
+                FileUtils.writeLine(lightSibling(mLightNodes[i], "step_ms"),
+                        mLightSavedStepMs[i]);
+            }
+            if (mLightSavedBrightness != null && mLightSavedBrightness[i] != null) {
+                FileUtils.writeLine(lightSibling(mLightNodes[i], "brightness"),
+                        mLightSavedBrightness[i]);
+            }
+        }
+        mLightSavedBrightness = null;
+        mLightSavedStepMs = null;
     }
 
     private void calibrateMotor() {
