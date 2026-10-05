@@ -370,6 +370,9 @@ firmware_directories /vendor/firmware_mnt/image/
 /sys/class/leds/white    delay_off    0640    system    system
 /sys/class/leds/white    breath       0640    system    system
 /sys/class/leds/white    trigger      0640    system    system
+/sys/class/leds/white    lut_pattern  0640    system    system
+/sys/class/leds/white    lo_idx       0640    system    system
+/sys/class/leds/white    step_ms      0640    system    system
 /sys/class/leds/green    delay_on     0640    system    system
 /sys/class/leds/green    delay_off    0640    system    system
 /sys/class/leds/green    breath       0640    system    system
