@@ -1,6 +1,11 @@
 /*
  * SPDX-FileCopyrightText: 2026 ergdevops
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * The SET_ALARM/CANCEL_ALARM broadcasts to the QTI PowerOffAlarm app follow
+ * DeskClock's AlarmStateManager.setPowerOffAlarm()/cancelPowerOffAlarm() by
+ * Mao Jinlong <jinlmao@codeaurora.org> (CAF, "DeskClock: Add support of power
+ * off alarm feature", LineageOS android_packages_apps_DeskClock f086ad892159).
  */
 
 package org.lineageos.settings.poweroffalarm;
