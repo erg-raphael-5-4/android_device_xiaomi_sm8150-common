@@ -3,3 +3,7 @@ allow vendor_hvdcp sysfs_iio:dir { read open search };
 
 # Allow access to sysfs files
 allow vendor_hvdcp sysfs:file { read open getattr write };
+
+# hvdcp_opti logs its charger decisions to the kernel log; without this its
+# log lines are silently dropped (avc: denied { getattr write } kmsg_device)
+allow vendor_hvdcp kmsg_device:chr_file { getattr open write };
