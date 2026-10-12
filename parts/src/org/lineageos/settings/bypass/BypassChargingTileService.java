@@ -15,25 +15,34 @@ public class BypassChargingTileService extends TileService {
     @Override
     public void onStartListening() {
         super.onStartListening();
-        updateTile(BypassChargingUtils.isEnabled(this));
+        updateTile();
     }
 
     @Override
     public void onClick() {
         super.onClick();
-        boolean enabled = !BypassChargingUtils.isEnabled(this);
-        BypassChargingUtils.setEnabled(this, enabled);
-        updateTile(enabled);
+        if (BypassChargingUtils.isChargingControlEnabled(this)) {
+            updateTile();
+            return;
+        }
+        BypassChargingUtils.setEnabled(this, !BypassChargingUtils.isEnabled(this));
+        updateTile();
     }
 
-    private void updateTile(boolean enabled) {
+    private void updateTile() {
         Tile tile = getQsTile();
         if (tile == null) {
             return;
         }
-        tile.setState(enabled ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
-        tile.setSubtitle(getString(enabled
-                ? R.string.bypass_charging_tile_on : R.string.bypass_charging_tile_off));
+        if (BypassChargingUtils.isChargingControlEnabled(this)) {
+            tile.setState(Tile.STATE_UNAVAILABLE);
+            tile.setSubtitle(getString(R.string.bypass_charging_tile_blocked));
+        } else {
+            boolean enabled = BypassChargingUtils.isEnabled(this);
+            tile.setState(enabled ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+            tile.setSubtitle(getString(enabled
+                    ? R.string.bypass_charging_tile_on : R.string.bypass_charging_tile_off));
+        }
         tile.updateTile();
     }
 }

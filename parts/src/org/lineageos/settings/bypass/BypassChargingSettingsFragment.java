@@ -31,8 +31,12 @@ public class BypassChargingSettingsFragment
     @Override
     public void onResume() {
         super.onResume();
+        boolean blocked = BypassChargingUtils.isChargingControlEnabled(getContext());
+        mBypassCharging.setEnabled(!blocked);
+        mBypassCharging.setSummary(blocked
+                ? R.string.bypass_charging_blocked : R.string.bypass_charging_summary);
         // The quick settings tile can change the state too.
-        mBypassCharging.setChecked(BypassChargingUtils.isEnabled(getContext()));
+        mBypassCharging.setChecked(!blocked && BypassChargingUtils.isEnabled(getContext()));
     }
 
     @Override

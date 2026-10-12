@@ -40,4 +40,6 @@
     <string name="bypass_charging_info">Useful while gaming on the charger: the battery stays cooler and isn\'t worn by charging under load. The battery still takes over instantly when the charger is unplugged, and it can still supplement the charger if the load is higher than the charger supplies. Turn this off to charge the battery again.</string>
     <string name="bypass_charging_tile_on">Battery not charging</string>
     <string name="bypass_charging_tile_off">Off</string>
+    <string name="bypass_charging_tile_blocked">Charging control is on</string>
+    <string name="bypass_charging_blocked">Unavailable while Charging control (Settings > Battery) is on, which manages the same charging switch</string>
 </resources>
