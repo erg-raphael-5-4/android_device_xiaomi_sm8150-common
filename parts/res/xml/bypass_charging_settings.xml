@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: 2026 ergdevops
+     SPDX-License-Identifier: Apache-2.0
+-->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="bypass_charging"
+        android:persistent="false"
+        android:summary="@string/bypass_charging_summary"
+        android:title="@string/bypass_charging_title" />
+
+    <Preference
+        android:key="bypass_charging_info"
+        android:selectable="false"
+        android:summary="@string/bypass_charging_info" />
+
+</PreferenceScreen>

@@ -39,3 +39,6 @@ binder_call(hal_motor, devicesettings_app)
 # which fall back to default_prop. Only coredomain may read that type, and the
 # lookups return "unset" either way, so don't audit them.
 dontaudit devicesettings_app default_prop:file read;
+
+# Allow XiaomiParts to switch bypass charging through the Lineage health HAL
+hal_client_domain(devicesettings_app, hal_lineage_health)

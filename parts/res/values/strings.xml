@@ -33,4 +33,11 @@
     <string name="popup_camera_calibrate_now">Calibrate</string>
     <string name="popup_camera_calibrate_failed">Couldn\'t calibrate</string>
     <string name="popup_camera_calibrate_success">Calibrated successfully. You can open the front camera now.</string>
+
+    <!-- Bypass charging -->
+    <string name="bypass_charging_title">Bypass charging</string>
+    <string name="bypass_charging_summary">Power the phone from the charger without charging the battery</string>
+    <string name="bypass_charging_info">Useful while gaming on the charger: the battery stays cooler and isn\'t worn by charging under load. The battery still takes over instantly when the charger is unplugged, and it can still supplement the charger if the load is higher than the charger supplies. Turn this off to charge the battery again.</string>
+    <string name="bypass_charging_tile_on">Battery not charging</string>
+    <string name="bypass_charging_tile_off">Off</string>
 </resources>

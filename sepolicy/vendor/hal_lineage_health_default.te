@@ -1,0 +1,2 @@
+# Bypass charging: battery/charging_enabled of the PM8150B charger
+rw_dir_file(hal_lineage_health_default, vendor_sysfs_battery_supply)
